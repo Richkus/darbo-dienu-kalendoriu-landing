@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Darbo dienų kalendoriai</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="svetaine-tokens.css">
+<!--
+  =====================================================================
+  2027 m. darbo dienų kalendoriai — HTML prototipas programuotojams (v6 – v5 + vienas pagalbos blokas vietoj „i“ ir nuorodos)
+  Wireframe: Figma „Wallpaper – DU kalendorius“, node 2478:7325
+  Dizaino sistema: SUFLERIO „→ Design system V.3“
+
+  BŪSENA
+    week   : '5' | '6' | '5-6'                 default '5'
+    type   : 'print' | 'desktop'               default 'print'
+    format : '16:9' | '16:10' | '5:4'          default '16:9' (žyma „Rekomenduojamas“)
+
+  TAISYKLĖS
+    • „5 ir 6 d. d.“ – tik spausdinimui: tipas tampa 'print', „Kalendorius
+      kompiuterio fonui“ neaktyvus. Grįžus prie 5 / 6 d. d. – vėl 'desktop',
+      jei naudotojas pats tipo nekeitė.
+    • „Ekrano forma“ rodoma tik kai type = 'desktop'.
+    • Ekrano dydis neaptinkamas: visada pažymėtas „Platus 16:9“ su žyma „Rekomenduojamas“.
+    • Nuoroda „Jei ekrano dydžio nežinote“ visada matoma po kortelėmis – atidaro modalą.
+    • Mygtukas „Atsisiųsti“ visada matomas. Paspaudus – būsena „Siunčiama“ (Loading),
+      kai failas atsiųstas – grįžta į default. (Figma v7 2026-10-09, node 2603:14420)
+    • Failų nuorodos – FILES objekte (placeholder'iai).
+  =====================================================================
+-->
+<style>
+  /* Spalvos, šriftai, kampai, šešėliai – svetaine-tokens.css (--ms- kintamieji) */
+  :root{
+    --pro:#b9488f;           /* NAUJAS: įtraukti į DS */
+    --ease:cubic-bezier(.22,1,.36,1);   /* NAUJAS: įtraukti į DS */
+    --t1:150ms; --t2:250ms;             /* NAUJAS: įtraukti į DS */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--ms-white);color:var(--ms-text);font-family:var(--ms-font);font-size:var(--ms-fs-body-lg);line-height:var(--ms-lh-body);-webkit-font-smoothing:antialiased}
+  button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-align:inherit}
+  a{color:inherit}
+  img,svg{display:block}
+  :focus-visible{outline:2px solid var(--ms-link);outline-offset:2px;border-radius:var(--ms-radius-sm)}
+  .ico{width:20px;height:20px;flex:none}
+  .ico-24,.ico-lg{width:24px;height:24px;flex:none}
+
+  /* =================== RĖMELIS =================== */
+  .app{display:grid;grid-template-columns:280px 1fr;min-height:100vh}
+  .side{background:var(--ms-teal-400);color:var(--ms-teal-900);position:sticky;top:0;height:100vh;overflow:auto;padding:20px 0 24px;scrollbar-width:thin}
+  .logo{display:block;padding:4px 32px 26px;text-decoration:none;color:var(--ms-white)}
+  .logo-top{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;letter-spacing:.32em;line-height:1} /* NAUJAS: įtraukti į DS (logotipas) */
+  .logo-pro{background:var(--pro);color:var(--ms-white);font-size:8.5px;letter-spacing:.04em;padding:2px 4px;border-radius:var(--ms-radius-sm)} /* NAUJAS: įtraukti į DS (logotipas) */
+  .logo-main{font-size:27px;font-weight:700;letter-spacing:.02em;line-height:1.05;margin-top:2px} /* NAUJAS: įtraukti į DS (logotipas) */
+  .nav{display:flex;flex-direction:column;padding-right:20px}
+  .nav a{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 20px 9px 32px;text-decoration:none;font-size:var(--ms-fs-body-lg);line-height:22px;border-radius:0 var(--ms-radius-pill) var(--ms-radius-pill) 0}
+  .nav a:hover{background:rgba(255,255,255,.22)} /* NAUJAS: įtraukti į DS */
+  .nav a.is-active{background:var(--ms-teal-250);font-weight:600}
+  .nav .count{background:rgba(255,255,255,.35);border-radius:10px;padding:0 7px;font-size:var(--ms-fs-small)} /* NAUJAS: įtraukti į DS (fonas, kampai 10px) */
+  .nav .muted{opacity:.6;font-size:var(--ms-fs-body)}
+  .nav-pro{display:flex;align-items:center;gap:8px;padding:12px 32px 6px;font-weight:700;font-size:var(--ms-fs-body-lg)}
+  .nav-pro span{background:var(--ms-white);color:var(--pro);font-size:var(--ms-fs-xs);font-weight:700;padding:1px 6px;border-radius:var(--ms-radius-sm);line-height:16px}
+  .nav-sub{margin-left:40px;border-left:1.5px solid rgba(29,78,82,.25)} /* NAUJAS: įtraukti į DS */
+  .nav-sub a{padding-left:18px;font-size:var(--ms-fs-body-lg)}
+  .topbar{position:sticky;top:0;z-index:30;height:72px;display:flex;align-items:center;gap:32px;padding:0 40px;background:var(--ms-white);border-bottom:1px solid var(--ms-border)}
+  .search{flex:1;max-width:820px;height:42px;display:flex;align-items:center;gap:10px;padding:0 14px 0 20px;border:1px solid var(--ms-border-card);border-radius:var(--ms-radius-input);color:var(--ms-text-teal)}
+  .search span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .top-links{display:flex;gap:28px;margin-left:auto;font-weight:600;color:var(--ms-teal-700);white-space:nowrap}
+  .top-links a{display:flex;align-items:center;gap:8px;text-decoration:none}
+  .topbar .burger{display:none}
+  .icon-btn{width:32px;height:32px;border-radius:var(--ms-radius-sm);display:grid;place-items:center;color:var(--ms-text-teal);transition:background-color var(--t1),color var(--t1)}
+  .icon-btn:hover{background:var(--ms-teal-75);color:var(--ms-text)}
+  .main{min-width:0}
+
+  /* =================== PUSLAPIS =================== */
+  .page{max-width:1260px;padding:48px 48px 72px}  /* lygiuojama į kairę, kaip visoje MS svetainėje */
+  /* Kaip MS turinio puslapiuose: grįžimo nuoroda, 23 px pavadinimas su linija, 15 px tekstas */
+  .head{margin-bottom:32px}
+  .back{display:inline-flex;align-items:center;gap:2px;margin:0 0 16px -4px;font-size:var(--ms-fs-body);line-height:20px;color:var(--ms-text);text-decoration:none}
+  .back:hover{color:var(--ms-teal-700);text-decoration:underline}
+  .back svg{width:18px;height:18px}
+  .h1{margin:0;font-size:23px;line-height:32px;font-weight:700;color:var(--ms-text)} /* NAUJAS: įtraukti į DS (H1 23px, kaip Figma v7) */
+  .lead{margin:8px 0 0;max-width:620px;font-size:var(--ms-fs-body-lg);line-height:24px;color:var(--ms-text)}  /* tokio pat pločio kaip pasirinkimų stulpelis */
+  .layout{display:grid;grid-template-columns:minmax(0,620px) minmax(0,1fr);grid-template-rows:auto 1fr;column-gap:clamp(32px,4vw,56px);align-items:start}
+  .layout > .head,.layout > .config{grid-column:1}
+  .layout > .preview{grid-column:2;grid-row:1 / span 2}  /* nuotrauka nuo antraštės lygio */
+  .config{display:flex;flex-direction:column;gap:32px;min-width:0}
+
+  /* Klausimas */
+  .q{display:flex;flex-direction:column;gap:12px}
+  .q-title{margin:0;display:flex;align-items:center;gap:8px;font-size:var(--ms-fs-h3);line-height:30px;font-weight:700;color:var(--ms-text)}
+  .q-note{margin:0;font-size:var(--ms-fs-small);line-height:20px;color:var(--ms-text-muted)}
+
+  /* Vienas pasirinkimo elementas visiems klausimams (wireframe: version-option / format-block) */
+  .options{display:grid;gap:12px}
+  .options--3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .options--2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .opt{
+    position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+    min-height:42px;padding:8px 16px;border-radius:var(--ms-radius-tile);text-align:center;text-wrap:balance;
+    background:var(--ms-white);border:1px solid var(--ms-border-card);
+    font-size:var(--ms-fs-body-lg);line-height:22px;font-weight:600;color:var(--ms-text);  /* #405359 – kontrastas ≥ 4,5:1 */
+    transition:border-color var(--t1),background-color var(--t1),color var(--t1),box-shadow var(--t1);
+  }
+  .opt:hover:not(:disabled):not(.is-selected){border-color:var(--ms-teal-600)}
+  .opt.is-selected{background:var(--ms-teal-75);border-color:var(--ms-teal-600);box-shadow:inset 0 0 0 1px var(--ms-teal-600);color:var(--ms-text)}
+  .opt:disabled{cursor:not-allowed}
+  .opt--format{min-height:104px;padding:16px}
+  .opt--format .ratio-name{display:block}
+  .opt--format .ratio-val{display:block;font-weight:400;color:#6C8284}
+  .shape{height:16px;width:28px;display:grid;place-items:center}
+  .shape i{display:block;border:1.5px solid var(--ms-teal-600);border-radius:2px} /* NAUJAS: įtraukti į DS (kampai 2px) */
+  .tag{
+    position:absolute;top:-10px;left:50%;transform:translateX(-50%);
+    background:var(--ms-teal-700);color:var(--ms-white);border-radius:var(--ms-radius-sm);padding:2px 8px 4px 10px;
+    font-size:var(--ms-fs-eyebrow);line-height:14px;font-weight:600;white-space:nowrap;pointer-events:none;
+  }
+  .formats{padding-top:10px}
+
+  .link{color:var(--ms-link);font-size:var(--ms-fs-body-lg);line-height:22px;text-decoration:underline;text-underline-offset:2px}
+  .link:hover{color:var(--ms-teal-700)}
+
+  .os{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .os h4{margin:0 0 4px;font-size:var(--ms-fs-body);line-height:20px;font-weight:700;color:var(--ms-text)}
+  .os ol{margin:0;padding-left:18px}
+
+  /* Sutraukiamas blokas */
+  .collapse{display:grid;grid-template-rows:1fr;opacity:1;transition:grid-template-rows var(--t2) var(--ease),opacity var(--t2) var(--ease)}
+  .collapse > div{min-height:0;overflow:hidden}
+  .collapse.is-open-done > div{overflow:visible}
+  .collapse.is-closed{grid-template-rows:0fr;opacity:0}
+  .config > .collapse.is-closed{margin-top:-32px}
+
+  /* Mygtukas – Figma v7 Buttons/Button: 40 px, apvalinimas 6 px, 15 px / 600, plotis pagal tekstą */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:9px 24px;text-align:center;text-wrap:balance;border:0;border-radius:var(--ms-radius-input);background:var(--ms-primary);color:var(--ms-white);font-size:var(--ms-fs-body-lg);line-height:22px;font-weight:600;text-decoration:none;transition:background-color var(--t1)} /* DS: kontrastas – spręsti naujoje DS */
+  .btn:hover,.btn:active{background:var(--ms-primary-hover)}
+  /* Loading: „Siunčiama“ + sukasi ikona */
+  .btn.is-loading{background:var(--ms-primary-hover);pointer-events:none}
+  .btn .spin{display:none;animation:spin .8s linear infinite} /* NAUJAS: įtraukti į DS (animacija .8s) */
+  .btn.is-loading .spin{display:block}
+  .btn.is-loading .dl{display:none}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* =================== VIZUALAS =================== */
+  .preview{position:sticky;top:96px;padding-top:8px}  /* nuotrauka slenka kartu: 72px viršutinė juosta + 24px tarpas */ /* NAUJAS: įtraukti į DS (96px) */
+  .media{position:relative;aspect-ratio:5/4;border-radius:var(--ms-radius-card);overflow:hidden;background:var(--ms-teal-75);cursor:zoom-in}
+  .media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity var(--t2) var(--ease)}
+  .media img:not(.is-active){opacity:0}
+  .eye{position:absolute;right:16px;top:16px;width:40px;height:40px;border-radius:var(--ms-radius-sm);background:var(--ms-white);border:1px solid var(--ms-border);display:grid;place-items:center;color:var(--ms-teal-700)}
+  .eye:hover{background:var(--ms-teal-75)}
+
+  /* Lightbox */
+  .lb{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:56px 24px 24px;background:color-mix(in srgb,var(--ms-teal-650) 50%,transparent); /* kaip svetainės modalų fonas (#407777, 50 %) */ opacity:0;visibility:hidden;transition:opacity var(--t2),visibility 0s linear var(--t2)}
+  .lb.is-open{opacity:1;visibility:visible;transition:opacity var(--t2),visibility 0s}
+  .lb-stage{width:100%;max-width:1400px;height:100%;overflow:hidden;cursor:zoom-in}
+  .lb-stage.is-zoomed{cursor:zoom-out}
+  .lb-img{width:100%;height:100%;object-fit:contain;transform:scale(.97);transition:transform 300ms var(--ease);user-select:none;-webkit-user-drag:none}
+  .lb.is-open .lb-img{transform:scale(1)}
+  .lb-stage.is-zoomed .lb-img{transform:scale(2.2);transition:transform 300ms var(--ease),transform-origin 80ms linear}
+  .lb-close{position:absolute;right:16px;top:16px;width:48px;height:48px;border-radius:var(--ms-radius-hero);display:grid;place-items:center;color:var(--ms-white);background:color-mix(in srgb,var(--ms-teal-650) 80%,transparent);transition:background-color var(--t1)} /* NAUJAS: įtraukti į DS (uždarymo mygtukas ant fono: 48 px, #407777, 80 %; Figma 2684:4689) */
+  .lb-close:hover{background:var(--ms-teal-700)}
+
+  /* =================== FOOTER =================== */
+  .footer{background:var(--ms-teal-75);border-top:1px solid var(--ms-border);color:var(--ms-teal-700)}
+  .f-cols{display:grid;grid-template-columns:repeat(4,minmax(0,280px));gap:40px;padding:56px 48px 48px}
+  .f-col h3{margin:0 0 18px;font-size:var(--ms-fs-card-title);font-weight:700;text-transform:uppercase;color:var(--ms-heading-teal)}
+  .f-col ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
+  .f-col a{text-decoration:none;font-size:var(--ms-fs-body-lg);line-height:1.35}
+  .f-col a:hover{text-decoration:underline}
+  .f-sep{height:1px;background:var(--ms-border-card);width:240px;margin:26px 0}
+  .f-bottom{display:flex;align-items:center;gap:12px;padding:20px 48px 24px;border-top:1px solid var(--ms-border);color:var(--ms-text)}
+  .f-social{display:flex;gap:6px}
+  .f-social a{width:42px;height:42px;border-radius:var(--ms-radius-sm);background:var(--ms-teal-300);color:var(--ms-teal-700);display:grid;place-items:center}
+  .f-social svg{width:22px;height:22px}
+  .f-copy{margin-left:auto}
+
+  /* =================== PASTABOS =================== */
+  .dev{margin-top:56px;border-top:1px dashed var(--ms-border-card);padding-top:16px;font-size:var(--ms-fs-small);line-height:20px;color:var(--ms-text)}
+  .dev summary{cursor:pointer;font-weight:700;color:var(--ms-text-teal)}
+  .dev ul{margin:10px 0 0;padding-left:18px}
+  .dev code{font-size:var(--ms-fs-eyebrow);background:var(--ms-teal-75);border-radius:var(--ms-radius-sm);padding:0 4px}
+
+  /* =================== RESPONSIVE =================== */
+  @media (max-width:1140px){
+    .app{grid-template-columns:1fr}
+    .side{display:none}
+    .topbar .burger{display:grid}
+    .top-links a span{display:none}
+    .layout{grid-template-columns:1fr;grid-template-rows:none}
+    .layout > .head,.layout > .config,.layout > .preview{grid-column:auto;grid-row:auto}
+    .layout > .head{order:-2}
+    .preview{position:relative;top:0;order:-1;margin-bottom:32px}
+    .f-cols{grid-template-columns:repeat(2,minmax(0,1fr))}
+  }
+  @media (max-width:640px){
+    .topbar{padding:0 16px;gap:12px}
+    .top-links a:not(:last-child){display:none}
+    .page{padding:24px 16px 56px}
+    .media{aspect-ratio:16/9}  /* telefone žemesnis vizualas – 1 žingsnis matomas be slinkimo */
+    .h1{font-size:21px;line-height:28px} /* NAUJAS: įtraukti į DS (H1 telefone 21px) */
+    .options--2{grid-template-columns:1fr;justify-content:stretch}
+    .btn{display:flex;width:100%}
+    .options{gap:8px}
+    .opt{padding:8px 8px}
+    .os{grid-template-columns:1fr}
+    .f-cols{gap:32px 20px;padding:40px 16px 32px}
+    .f-bottom{flex-wrap:wrap;padding:20px 16px}
+    .f-copy{margin-left:0;width:100%}
+  }
+
+  /* =================== v4: radio pasirinkimai (iš v3) =================== */
+  .opt{
+    flex-direction:row;justify-content:flex-start;align-items:center;gap:12px;
+    min-height:56px;padding:25px 10px 25px 25px;border-radius:var(--ms-radius-tile);text-align:left;
+    background:var(--ms-teal-50);border:2px solid var(--ms-teal-50);box-shadow:none;
+    font-size:var(--ms-fs-body);line-height:21px;font-weight:700;color:var(--ms-text);
+  }
+  .opt:hover:not(:disabled):not(.is-selected){border-color:var(--ms-teal-400)}
+  .opt.is-selected{background:var(--ms-teal-100);border-color:var(--ms-teal-400);box-shadow:none;color:var(--ms-text)}
+  .radio{width:24px;height:24px;flex:none;border-radius:50%;background:var(--ms-white);border:1px solid var(--ms-border-input);display:grid;place-items:center;transition:border-color var(--t1)}
+  .radio::after{content:"";width:14px;height:14px;border-radius:50%;background:var(--ms-link);transform:scale(0);transition:transform var(--t1) var(--ease)}
+  .opt.is-selected .radio{border-color:var(--ms-link)}
+  .opt.is-selected .radio::after{transform:scale(1)}
+  .opt-label{min-width:0}
+  .opt:disabled{background:var(--ms-teal-50);border-color:var(--ms-teal-50);color:var(--ms-border-input)} /* NAUJAS: įtraukti į DS (Figma disabled: fonas #EFF3F3, tekstas #C0C0C0) */
+
+  @media (max-width:640px){
+    .options--3,.options--2{grid-template-columns:1fr}
+    .opt{min-height:52px}
+  }
+
+
+
+
+
+  /* =================== v7 (Figma 2026-10-09): ekrano formos kortelės =================== */
+  .formats{grid-template-columns:repeat(3,minmax(0,1fr));padding-top:0}
+  .options .opt--format{flex-direction:column;justify-content:flex-start;align-items:center;gap:10px;min-height:0;padding:24px 12px 16px;text-align:center}
+  .opt--format .radio{position:absolute;left:8px;top:12px}
+  .opt--format .opt-label{display:flex;flex-direction:column;align-items:center;white-space:nowrap}
+  .opt--format .ratio-val{font-weight:400;color:var(--ms-text-muted)}
+  .opt--format .tag{top:-12px;padding:4px 10px 6px;border-radius:var(--ms-radius-sm)}
+  #format-wrap .q{gap:16px}  /* Figma: 16 px iki kortelių (vieta žymai) */
+  #format-wrap .formats{margin-bottom:-4px}  /* iki nuorodos 12 px */
+  /* Monitorius: ekranas + kojelė + pagrindas */
+  .monitor{width:60px;height:52px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;color:var(--ms-text-subtle);transition:color var(--t1)}  /* nepasirinktas – pilkas (Figma grey-500 #8A9C9E) */
+  .opt.is-selected .monitor{color:var(--ms-link)}
+  .monitor .scr{background:var(--ms-white);border:2px solid currentColor;border-radius:var(--ms-radius-sm)}
+  .monitor .leg{width:14px;height:6px;background:currentColor}
+  .monitor .base{width:26px;height:2px;border-radius:2px;background:currentColor} /* NAUJAS: įtraukti į DS (kampai 2px) */
+  [data-format="16:9"] .scr{width:60px;height:34px}
+  [data-format="16:10"] .scr{width:56px;height:35px}
+  [data-format="5:4"] .scr{width:46px;height:37px}
+  .help-link{align-self:flex-start;font-size:var(--ms-fs-body);line-height:20px;font-weight:400;text-decoration:none}
+  .help-link:hover{text-decoration:underline}
+
+  /* Pagalbos modalas */
+  .modal{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:24px;background:color-mix(in srgb,var(--ms-teal-650) 50%,transparent); /* kaip svetainės modalų fonas (#407777, 50 %) */ opacity:0;visibility:hidden;transition:opacity var(--t2),visibility 0s linear var(--t2)}
+  .modal.is-open{opacity:1;visibility:visible;transition:opacity var(--t2),visibility 0s}
+  /* Figma Modal/Default (2618:21244) */
+  .modal-box{position:relative;width:100%;max-width:465px;max-height:100%;overflow:auto;padding:32px;background:var(--ms-white);border:1px solid var(--ms-border-card);border-radius:var(--ms-radius-toggle);box-shadow:var(--ms-shadow-float);transform:translateY(8px);transition:transform var(--t2) var(--ease)} /* NAUJAS: įtraukti į DS (modalas: plotis 465px, šešėlis 0 0 12px rgba(0,90,90,.15), rėmelis #D0DDDD) */
+  .modal.is-open .modal-box{transform:none}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .modal-title{margin:0;font-size:var(--ms-fs-h3-content);line-height:26px;font-weight:700;color:var(--ms-text)}
+  .modal-head .icon-btn{flex:none;margin:-4px;color:var(--ms-text-muted)}
+  .modal-head .icon-btn .ico{width:24px;height:24px}
+  .guide-body{display:flex;flex-direction:column;gap:16px;margin-top:16px;font-size:var(--ms-fs-body-lg);line-height:24px;color:var(--ms-text)}
+  .guide-body section{display:flex;flex-direction:column;gap:12px;padding-top:16px;border-top:1px solid var(--ms-border)}
+  .guide-body h3{margin:0;font-size:var(--ms-fs-body);line-height:26px;font-weight:400;letter-spacing:.01em;text-transform:uppercase;color:var(--ms-text-muted)}
+  .guide-body h4{margin:0 0 12px;font-size:var(--ms-fs-body-lg);line-height:24px;font-weight:600}
+  .guide-body ol{margin:0;padding-left:22px}
+  .guide-body ol li + li{margin-top:12px}
+  .guide-list{margin:0;display:flex;flex-direction:column;gap:12px}
+  .guide-list div{display:grid;grid-template-columns:135px 1fr;gap:12px;align-items:center}
+  .guide-list dt{line-height:26px;font-weight:600;white-space:nowrap}
+  .guide-list dt span{font-weight:400;color:var(--ms-text-muted)}
+  .guide-list dd{margin:0}
+  @media (max-width:640px){
+    /* Telefone – iš apačios iššokantis langas */
+    .modal{align-items:flex-end;padding:24px 0 0}
+    .modal-box{max-width:none;border-radius:var(--ms-radius-toggle) var(--ms-radius-toggle) 0 0;padding:24px 16px}
+    .guide-list div{grid-template-columns:1fr;gap:0}
+  }
+  /* Telefonas: formos – eilutėmis (Figma 2603:19462): radio, tekstas, monitorius dešinėje; žyma virš radio */
+  @media (max-width:480px){
+    .formats{grid-template-columns:1fr;gap:16px}
+    .options .opt--format{flex-direction:row;align-items:center;gap:18px;padding:8px 25px;text-align:left}
+    .opt--format .radio{position:static}
+    .opt--format .opt-label{flex:1;flex-direction:row;align-items:baseline;gap:8px}
+    .opt--format .monitor{order:1}
+    .opt--format .tag{left:19px;transform:none}  /* Figma: 21 px nuo kortelės krašto (su 2 px rėmeliu) */
+  }
+
+  @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:1ms !important}}
+</style>
+</head>
+<body>
+
+<!-- Ikonos: V.3 „↳ Icons“ (Info-outline, x-close, Check-circle, Calendar) + wireframe (Eye, Download) + svetainės rėmelio ikonos -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-calendar" viewBox="0 0 24 24" fill="currentColor"><path d="M8.35 11.21H5.92v2.43h2.43v-2.43ZM13.21 11.21h-2.43v2.43h2.43v-2.43ZM18.08 11.21h-2.43v2.43h2.43v-2.43ZM8.35 16.08H5.92v2.43h2.43v-2.43ZM13.21 16.08h-2.43v2.43h2.43v-2.43ZM18.08 16.08h-2.43v2.43h2.43v-2.43ZM9.49 4.26H6.78V2.14c0-.33.27-.6.6-.6h1.51c.33 0 .6.27.6.6v2.12ZM17.36 4.26h-2.71V2.14c0-.33.27-.6.6-.6h1.51c.33 0 .6.27.6.6v2.12Z"/><path d="M20.21 2.93h-2.46v1.8h-3.6v-1.8H9.89v1.8H6.28v-1.8c-1.07.12-3.82-.55-3.77 1.28-.04 2.75.03 14 0 16.96 0 .71.58 1.29 1.29 1.29h16.41c.71 0 1.29-.58 1.29-1.29V4.21c0-.71-.58-1.28-1.29-1.28Zm-.07 18.21H3.86V8.39h16.28v12.75Z"/></symbol>
+  <symbol id="i-chevron-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></symbol>
+  <symbol id="i-chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-check-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 12 3 3 6-6M22 12c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2s10 4.48 10 10Z"/></symbol>
+  <symbol id="i-info" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="9.25" stroke="currentColor" stroke-width="1.5"/><path d="M10.28 9.02v3.67c0 .14.03.3.14.44.11.14.26.2.41.22l.24.03v.12H8.93v-.12l.24-.03c.15-.02.3-.08.41-.22.11-.14.14-.3.14-.44V9.82c0-.14-.03-.3-.14-.44a.6.6 0 0 0-.42-.22l-.23-.03v-.11h1.35Zm-.39-2.53c.38 0 .45.08.45.45 0 .34-.18.35-.49.35-.37 0-.46-.08-.46-.36 0-.36.11-.44.5-.44Z" fill="currentColor" stroke="currentColor" stroke-width=".72"/></symbol>
+  <symbol id="i-zoom-in" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.9-3.9M11 8v6M8 11h6"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M1.62 9S4.32 3.78 9 3.78 16.38 9 16.38 9 13.68 14.22 9 14.22 1.62 9 1.62 9Z"/><circle cx="9" cy="9" r="2.34"/></symbol>
+  <symbol id="i-spinner" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 2.5a7.5 7.5 0 1 1-7.5 7.5" /></symbol>
+  <symbol id="i-download" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3v9M13.5 8.5 10 12 6.5 8.5M4 14.5V16h12v-1.5"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7.5"/><path d="m21 21-4.35-4.35"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.38 8.85a14.6 14.6 0 0 0 2.85 4.02 14.6 14.6 0 0 0 4.02 2.85l1.64-1.64a1.2 1.2 0 0 1 1.3-.26l2.6 1.04c.46.18.76.62.76 1.11v2.83c0 .66-.54 1.2-1.2 1.2C11.1 20 4 12.9 4 3.2 4 2.54 4.54 2 5.2 2h2.83c.5 0 .93.3 1.11.76l1.04 2.6c.18.45.08.96-.26 1.3L8.38 8.85Z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3.2"/><path d="M6.2 19c1.2-2.4 3.3-3.6 5.8-3.6s4.6 1.2 5.8 3.6"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></symbol>
+  <symbol id="i-fb" viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 21v-7.5h2.6l.4-3h-3V8.6c0-.87.25-1.46 1.5-1.46h1.6V4.46A21 21 0 0 0 14.3 4.3c-2.3 0-3.86 1.4-3.86 3.97v2.23H7.8v3h2.64V21h3.06Z"/></symbol>
+  <symbol id="i-ig" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r=".9" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-in" viewBox="0 0 24 24" fill="currentColor"><path d="M5.2 8.8h3v10h-3v-10Zm1.5-4.6a1.75 1.75 0 1 1 0 3.5 1.75 1.75 0 0 1 0-3.5ZM10.1 8.8H13v1.37h.04c.4-.76 1.38-1.56 2.85-1.56 3.05 0 3.61 2 3.61 4.62v5.57h-3v-4.94c0-1.18-.02-2.7-1.64-2.7-1.65 0-1.9 1.28-1.9 2.6v5.04h-2.86v-10Z"/></symbol>
+</svg>
+
+<div class="app">
+  <!-- Svetainės rėmelis – tik kontekstui -->
+  <aside class="side" aria-label="Pagrindinė navigacija">
+    <a class="logo" href="#">
+      <div class="logo-top">MOKESČIŲ <span class="logo-pro">PRO</span></div>
+      <div class="logo-main">SUFLERIS</div>
+    </a>
+    <nav class="nav">
+      <a href="#">Šiandien SUFLERYJE</a>
+      <a href="#">Mokesčių naujienos <span class="count">30</span></a>
+      <a href="#">Praktinės situacijos <span class="muted">14 684</span></a>
+      <a href="#">Sąvadai ir teminiai rinkiniai</a>
+      <a href="#">Seminarai ir vaizdo įrašai</a>
+      <a href="#">Renginių kalendorius</a>
+      <a href="#">Skaičiuoklės</a>
+      <a href="#">Testai</a>
+      <a href="#">Tinklalaidės</a>
+      <a href="#">Trumpai</a>
+      <a href="#">Užduokite klausimą</a>
+      <div class="nav-pro"><span>PRO</span> turinys</div>
+      <div class="nav-sub">
+        <a href="#">Kompetencijų centras</a>
+        <a href="#">Geroji praktika</a>
+        <a href="#">PRO mikroskopą</a>
+        <a href="#">PRO komentarai</a>
+        <a href="#">Profilaktika</a>
+        <a href="#">PRO konsultacijos</a>
+        <a href="#" class="is-active" aria-current="page">Pagalbinės priemonės</a>
+        <a href="#">Projektai</a>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn burger" aria-label="Meniu"><svg class="ico-lg"><use href="#i-menu"/></svg></button>
+      <label class="search"><span>Ieškoti pagal frazę</span><svg class="ico"><use href="#i-search"/></svg></label>
+      <nav class="top-links">
+        <a href="#"><svg class="ico-lg"><use href="#i-phone"/></svg><span>Susisiekti</span></a>
+        <a href="#"><svg class="ico-lg"><use href="#i-calendar"/></svg><span>Kainos ir planai</span></a>
+        <a href="#"><svg class="ico-lg"><use href="#i-user"/></svg><span>Audrius</span></a>
+      </nav>
+    </header>
+
+    <main class="page">
+      <div class="layout">
+        <header class="head">
+          <h1 class="h1">2027 m. darbo dienų kalendoriai buhalteriams</h1>
+          <p class="lead">Pasirinkite 5 arba 6 darbo dienų savaitės kalendorių 2027 metams. Atsisiųskite PDF spausdinimui arba pasirinkite kalendorių kompiuterio fonui.</p>
+        </header>
+        <section class="config" aria-label="Kalendoriaus pasirinkimas">
+
+          <!-- Darbo savaitė -->
+          <div class="q">
+            <h2 class="q-title" id="t-week">1. Pasirinkite darbo savaitę</h2>
+            <div class="options options--3" role="radiogroup" aria-labelledby="t-week" id="week-group">
+              <button class="opt" role="radio" data-week="5"><span class="radio" aria-hidden="true"></span><span class="opt-label">5&nbsp;d.&nbsp;d.</span></button>
+              <button class="opt" role="radio" data-week="6"><span class="radio" aria-hidden="true"></span><span class="opt-label">6&nbsp;d.&nbsp;d.</span></button>
+              <button class="opt" role="radio" data-week="5-6"><span class="radio" aria-hidden="true"></span><span class="opt-label">5 ir 6 d.&nbsp;d.</span></button>
+            </div>
+          </div>
+
+          <!-- Tipas -->
+          <div class="q">
+            <h2 class="q-title" id="t-type">2. Pasirinkite kalendoriaus tipą</h2>
+            <div class="options options--2" role="radiogroup" aria-labelledby="t-type" id="type-group">
+              <button class="opt" role="radio" data-type="print"><span class="radio" aria-hidden="true"></span><span class="opt-label">Kalendorius spausdinimui</span></button>
+              <button class="opt" role="radio" data-type="desktop" aria-describedby="type-note"><span class="radio" aria-hidden="true"></span><span class="opt-label">Kalendorius kompiuterio fonui</span></button>
+            </div>
+            <div class="collapse is-closed" id="type-note-wrap"><div>
+              <p class="q-note" id="type-note">5 ir 6 d. d. kalendorius – tik spausdinimui.</p>
+            </div></div>
+          </div>
+
+          <!-- Ekrano dydis -->
+          <div class="collapse is-closed" id="format-wrap"><div>
+            <div class="q">
+              <h2 class="q-title" id="t-format">3. Pasirinkite ekrano dydį</h2>
+
+              <div class="options formats" role="radiogroup" aria-labelledby="t-format" id="format-group">
+                <button class="opt opt--format" role="radio" data-format="16:9"><span class="radio" aria-hidden="true"></span><span class="monitor" aria-hidden="true"><span class="scr"></span><span class="leg"></span><span class="base"></span></span><span class="opt-label"><span class="ratio-name">Platus</span> <span class="ratio-val">16:9</span></span></button>
+                <button class="opt opt--format" role="radio" data-format="16:10"><span class="radio" aria-hidden="true"></span><span class="monitor" aria-hidden="true"><span class="scr"></span><span class="leg"></span><span class="base"></span></span><span class="opt-label"><span class="ratio-name">Vidutinis</span> <span class="ratio-val">16:10</span></span></button>
+                <button class="opt opt--format" role="radio" data-format="5:4"><span class="radio" aria-hidden="true"></span><span class="monitor" aria-hidden="true"><span class="scr"></span><span class="leg"></span><span class="base"></span></span><span class="opt-label"><span class="ratio-name">Siauresnis</span> <span class="ratio-val">5:4</span></span></button>
+              </div>
+              <button type="button" class="link help-link" id="help-btn" aria-haspopup="dialog" aria-controls="help-modal">Jei ekrano dydžio nežinote</button>
+            </div>
+          </div></div>
+
+          <!-- Atsisiuntimas -->
+          <div>
+            <a class="btn" id="cta" href="#" download><svg class="ico dl"><use href="#i-download"/></svg><svg class="ico spin"><use href="#i-spinner"/></svg><span id="cta-label">Atsisiųsti</span></a>
+          </div>
+        </section>
+
+        <!-- Vizualas -->
+        <aside class="preview">
+          <div class="media" id="media">
+            <img data-visual="print" class="is-active" src="assets/vizualas-spausdinimui.webp" alt="Atspausdinti 2027 m. darbo laiko kalendoriai">
+            <img data-visual="desktop" src="assets/vizualas-darbalaukis.jpg" alt="Kompiuterio darbalaukis su 2027 m. kalendoriaus fonu">
+            <button class="eye" id="eye" aria-label="Padidinti nuotrauką"><svg style="width:20px;height:20px"><use href="#i-zoom-in"/></svg></button>
+          </div>
+        </aside>
+      </div>
+
+      <details class="dev">
+        <summary>Pastabos programuotojams (ne dizaino dalis)</summary>
+        <ul>
+          <li>Būsena: <code id="state"></code></li>
+          <li>Pasirinkimo elementai – MS skaičiuoklių radio laukeliai (v3); aplinka – v1.</li>
+          <li>Mygtukas – Figma v7 <code>Buttons/Button</code>: Default → Loading („Siunčiama“) → Default, kai failas atsiųstas.</li>
+          <li>Ekrano dydis neaptinkamas – numatytai pažymėtas „Platus 16:9“ su žyma „Rekomenduojamas“.</li>
+          <li>Perėjimai 150 ms (hover) ir 250 ms (blokų išskleidimas, vaizdo keitimas); <code>prefers-reduced-motion</code> gerbiamas.</li>
+          <li>Prototipe atsisiuntimas imituojamas – failo kelias rodomas eilutėje „Būsena“.</li>
+        </ul>
+      </details>
+    </main>
+
+    <footer class="footer">
+      <div class="f-cols">
+        <nav class="f-col" aria-label="Apie mus">
+          <h3>Apie mus</h3>
+          <ul>
+            <li><a href="#">Apie SUFLERĮ</a></li>
+            <li><a href="#">Kaip veikia SUFLERIS?</a></li>
+            <li><a href="#">Komanda</a></li>
+            <li><a href="#">Ekspertai</a></li>
+            <li><a href="#">Atsiliepimai</a></li>
+            <li><a href="#">Karjera</a></li>
+            <li><a href="#">Taisyklės</a></li>
+            <li><a href="#">Privatumo politika</a></li>
+          </ul>
+          <div class="f-sep"></div>
+          <h3>Susisiekti</h3>
+          <ul>
+            <li><a href="#">Pagalbos centras</a></li>
+            <li><a href="#">Klientų aptarnavimas</a></li>
+            <li><a href="#">Pasitarti su vadybininku</a></li>
+            <li><a href="#">Kontaktai</a></li>
+          </ul>
+        </nav>
+        <nav class="f-col" aria-label="Turinys">
+          <h3>Turinys</h3>
+          <ul>
+            <li><a href="#">Šiandien SUFLERYJE</a></li>
+            <li><a href="#">Mokesčių naujienos</a></li>
+            <li><a href="#">Praktinės situacijos</a></li>
+            <li><a href="#">Sąvadai ir teminiai rinkiniai</a></li>
+            <li><a href="#">Seminarai ir vaizdo įrašai</a></li>
+            <li><a href="#">Savaitės apžvalga</a></li>
+            <li><a href="#">Renginių kalendorius</a></li>
+            <li><a href="#">Skaičiuoklės</a></li>
+            <li><a href="#">Testai</a></li>
+            <li><a href="#">Failai atsisiuntimui</a></li>
+            <li><a href="#"><b>PRO</b> turinys</a></li>
+            <li><a href="#"><b>PRO</b> Geroji praktika</a></li>
+            <li><a href="#"><b>PRO</b> mikroskopą</a></li>
+            <li><a href="#"><b>PRO</b> komentarai</a></li>
+            <li><a href="#">Profilaktika</a></li>
+            <li><a href="#"><b>PRO</b> konsultacijos</a></li>
+            <li><a href="#">Pagalbinės priemonės</a></li>
+            <li><a href="#">Projektai</a></li>
+          </ul>
+        </nav>
+        <nav class="f-col" aria-label="Mano SUFLERIS">
+          <h3>Mano SUFLERIS</h3>
+          <ul>
+            <li><a href="#">Apie mano planą</a></li>
+            <li><a href="#">Mano pasižymėti</a></li>
+            <li><a href="#">Man atrakinti</a></li>
+            <li><a href="#">Man atsakyti</a></li>
+            <li><a href="#">Nustatymai</a></li>
+            <li><a href="#">Sąskaitos</a></li>
+            <li><a href="#">Užduoti savo klausimą</a></li>
+          </ul>
+        </nav>
+        <nav class="f-col" aria-label="Kainos ir planai">
+          <h3>Kainos ir planai</h3>
+          <ul>
+            <li><a href="#">Kainos ir planai</a></li>
+            <li><a href="#">Planas BAZINIS</a></li>
+            <li><a href="#">Planas PRO</a></li>
+            <li><a href="#">Planas KOMANDA</a></li>
+            <li><a href="#">Planų palyginimas</a></li>
+            <li><a href="#">Pasitarti su vadybininku</a></li>
+          </ul>
+        </nav>
+      </div>
+      <div class="f-bottom">
+        <div class="f-social">
+          <a href="#" aria-label="Facebook"><svg><use href="#i-fb"/></svg></a>
+          <a href="#" aria-label="Instagram"><svg><use href="#i-ig"/></svg></a>
+          <a href="#" aria-label="LinkedIn"><svg><use href="#i-in"/></svg></a>
+        </div>
+        <span>Sekite mus socialiniuose tinkluose</span>
+        <span class="f-copy">Mokesčių SUFLERIS (C) 2026.</span>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<!-- Pagalba: modalas (atidaro „Jei ekrano dydžio nežinote“) -->
+<div class="modal" id="help-modal" role="dialog" aria-modal="true" aria-labelledby="help-title">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2 class="modal-title" id="help-title">Jei ekrano dydžio nežinote</h2>
+      <button type="button" class="icon-btn" id="help-close" aria-label="Uždaryti"><svg class="ico"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="guide-body">
+      <section>
+        <h3>Pasitikrinkite savo ekrano rezoliuciją</h3>
+        <div>
+          <h4>Windows</h4>
+          <ol>
+            <li>Darbalaukyje spustelėkite dešiniu pelės klavišu.</li>
+            <li>Pasirinkite „Ekrano nustatymai“ („Display settings“).</li>
+            <li>Slinkite žemyn iki „Ekrano rezoliucija“ („Display resolution“). Rezoliuciją matysite skaičiais.</li>
+          </ol>
+        </div>
+        <div>
+          <h4>Mac</h4>
+          <ol>
+            <li>Ekrano viršuje kairėje spustelėkite „Apple“ ženkliuką</li>
+            <li>Pasirinkite „Sistemos nustatymai“ („System Settings“).</li>
+            <li>Kairėje spustelėkite „Ekranai“ („Displays“). Rezoliuciją matysite po ekrano pavadinimu.</li>
+          </ol>
+        </div>
+      </section>
+      <section>
+        <h3>Raskite tinkamą rezoliuciją sąraše</h3>
+        <dl class="guide-list">
+          <div><dt>Platus <span>(16:9)</span></dt><dd>1920×1080, 1366×768, 2560×1440</dd></div>
+          <div><dt>Vidutinis <span>(16:10)</span></dt><dd>1440×900, 1680×1050, 1920×1200</dd></div>
+          <div><dt>Siauresnis <span>(5:4)</span></dt><dd>1280×1024, 1024×768</dd></div>
+        </dl>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Vaizdo peržiūra">
+  <div class="lb-stage" id="lb-stage"><img class="lb-img" id="lb-img" alt=""></div>
+  <button class="lb-close" id="lb-close" aria-label="Uždaryti"><svg class="ico-24"><use href="#i-x"/></svg></button>
+</div>
+
+<script>
+(() => {
+  /* ---------- Konfigūracija ---------- */
+  const FILES = {
+    desktop: {
+      '5': { '16:9':'/files/2027/fonas-5dd-16x9.jpg', '16:10':'/files/2027/fonas-5dd-16x10.jpg', '5:4':'/files/2027/fonas-5dd-5x4.jpg' },
+      '6': { '16:9':'/files/2027/fonas-6dd-16x9.jpg', '16:10':'/files/2027/fonas-6dd-16x10.jpg', '5:4':'/files/2027/fonas-6dd-5x4.jpg' }
+    },
+    print: { '5':'/files/2027/kalendorius-5dd-A4.pdf', '6':'/files/2027/kalendorius-6dd-A4.pdf', '5-6':'/files/2027/kalendorius-5ir6dd-A4.pdf' }
+  };
+  const WEEK = { '5':'5 d. d.', '6':'6 d. d.', '5-6':'5 ir 6 d. d.' };
+
+  const state = { week:'5', type:'print', format:'16:9' };
+  let autoPrint = false;        // tipą į 'print' perjungė „5 ir 6 d. d.“
+  let lastFile = '';
+
+  const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+  const C = id => document.getElementById(id);
+  const weekBtns = $$('#week-group .opt'), typeBtns = $$('#type-group .opt'), fmtBtns = $$('#format-group .opt');
+
+  function setCollapse(el, open){
+    if (open === !el.classList.contains('is-closed')) return;
+    el.classList.remove('is-open-done');
+    el.classList.toggle('is-closed', !open);
+    clearTimeout(el._t);
+    if (open) el._t = setTimeout(() => el.classList.add('is-open-done'), 260);
+  }
+  function select(btns, key, val){
+    btns.forEach((b, i) => {
+      const on = b.dataset[key] === val;
+      b.classList.toggle('is-selected', on);
+      b.setAttribute('aria-checked', on);
+      b.tabIndex = on || (!val && i === 0) ? 0 : -1;
+    });
+  }
+
+  /* ---------- Rekomenduojamas dydis ---------- */
+  fmtBtns.find(b => b.dataset.format === '16:9').insertAdjacentHTML('beforeend', '<span class="tag">Rekomenduojamas</span>');
+
+  /* ---------- Render ---------- */
+  function render(){
+    const onlyPrint = state.week === '5-6';
+    if (onlyPrint && state.type === 'desktop'){ state.type = 'print'; autoPrint = true; }
+    if (!onlyPrint && autoPrint){ state.type = 'desktop'; autoPrint = false; }
+    const desk = state.type === 'desktop';
+
+    select(weekBtns, 'week', state.week);
+    select(typeBtns, 'type', state.type);
+    select(fmtBtns, 'format', state.format);
+    typeBtns.find(b => b.dataset.type === 'desktop').disabled = onlyPrint;
+    setCollapse(C('type-note-wrap'), onlyPrint);
+
+    setCollapse(C('format-wrap'), desk);
+
+    C('cta').href = desk ? FILES.desktop[state.week][state.format] : FILES.print[state.week];
+
+    $$('#media img').forEach(i => i.classList.toggle('is-active', i.dataset.visual === state.type));
+    C('state').textContent = JSON.stringify(state) + (lastFile ? ' · atsisiųsta: ' + lastFile : '');
+  }
+
+  /* ---------- Pasirinkimai ---------- */
+  function choose(fn){ fn(); render(); }
+  weekBtns.forEach(b => b.addEventListener('click', () => choose(() => state.week = b.dataset.week)));
+  typeBtns.forEach(b => b.addEventListener('click', () => { if (!b.disabled) choose(() => { state.type = b.dataset.type; autoPrint = false; }); }));
+  fmtBtns.forEach(b => b.addEventListener('click', () => choose(() => state.format = b.dataset.format)));
+
+  $$('[role="radiogroup"]').forEach(g => g.addEventListener('keydown', e => {
+    if (!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) return;
+    const items = [...g.querySelectorAll('[role="radio"]:not(:disabled)')];
+    const i = Math.max(0, items.indexOf(document.activeElement));
+    const n = items[(i + (/Right|Down/.test(e.key) ? 1 : -1) + items.length) % items.length];
+    e.preventDefault(); n.focus(); n.click();
+  }));
+
+  /* ---------- Atsisiuntimas: Default → Loading („Siunčiama“) → Default ---------- */
+  C('cta').addEventListener('click', e => {
+    e.preventDefault();                       // prototipe failo nėra – siuntimas imituojamas
+    const cta = C('cta');
+    if (cta.classList.contains('is-loading')) return;
+    lastFile = cta.getAttribute('href');
+    cta.classList.add('is-loading'); cta.setAttribute('aria-busy', 'true');
+    C('cta-label').textContent = 'Siunčiama';
+    setTimeout(() => {
+      cta.classList.remove('is-loading'); cta.removeAttribute('aria-busy');
+      C('cta-label').textContent = 'Atsisiųsti';
+      render();
+    }, 1500);
+  });
+
+  /* ---------- Pagalbos modalas ---------- */
+  const help = C('help-modal');
+  let helpFocus;
+  function openHelp(){
+    helpFocus = document.activeElement;
+    help.classList.add('is-open'); document.body.style.overflow = 'hidden';
+    C('help-close').focus({ preventScroll:true });
+  }
+  function closeHelp(){
+    help.classList.remove('is-open'); document.body.style.overflow = '';
+    helpFocus && helpFocus.focus({ preventScroll:true });
+  }
+  C('help-btn').addEventListener('click', openHelp);
+  C('help-close').addEventListener('click', closeHelp);
+  help.addEventListener('click', e => { if (e.target === help) closeHelp(); });
+
+  /* ---------- Lightbox ---------- */
+  const lb = C('lb'), stage = C('lb-stage'), lbImg = C('lb-img');
+  let lastFocus;
+  function showLb(){
+    const hero = $('#media img.is-active');
+    lbImg.src = hero.getAttribute('src'); lbImg.alt = hero.alt;
+  }
+  function openLb(){
+    lastFocus = document.activeElement;
+    showLb();
+    stage.classList.remove('is-zoomed');
+    lb.classList.add('is-open'); document.body.style.overflow = 'hidden';
+    C('lb-close').focus({ preventScroll:true });
+  }
+  function closeLb(){
+    lb.classList.remove('is-open'); document.body.style.overflow = '';
+    lastFocus && lastFocus.focus({ preventScroll:true });
+  }
+  function origin(e){ const r = stage.getBoundingClientRect(); lbImg.style.transformOrigin = `${(e.clientX - r.left) / r.width * 100}% ${(e.clientY - r.top) / r.height * 100}%`; }
+  stage.addEventListener('click', e => { origin(e); stage.classList.toggle('is-zoomed'); });
+  stage.addEventListener('mousemove', e => { if (stage.classList.contains('is-zoomed')) origin(e); });
+  C('media').addEventListener('click', openLb);
+  C('lb-close').addEventListener('click', closeLb);
+  lb.addEventListener('click', e => { if (e.target === lb) closeLb(); });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (lb.classList.contains('is-open')) closeLb();
+    if (help.classList.contains('is-open')) closeHelp();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
